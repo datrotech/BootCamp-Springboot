@@ -14,7 +14,7 @@ pipeline {
     {
       agent { label 'demo' }
       steps {
-        git branch: 'newfeature', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/buildpipeline/backend/springboot.git'
+        git branch: 'integration', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/buildpipeline/backend/springboot.git'
       }
      } 
 
@@ -24,7 +24,7 @@ pipeline {
       steps {
             echo "Building Sprint Boot Jar ..."
             sh "mvn clean package -Dmaven.test.skip=true"
-            sh "cp target/wezvatech-springboot-mysql-9739110917.jar target/backend_fb${BUILD_ID}.jar"
+            sh "cp target/wezvatech-springboot-mysql-9739110917.jar target/backend_int${BUILD_ID}.jar"
        }
     }
     
@@ -78,7 +78,7 @@ pipeline {
     steps{
       script {
                                   // Prepare the Tag name for the Image
-          AppTag = params.APPREPO + ":fb" + env.BUILD_ID
+          AppTag = params.APPREPO + ":int" + env.BUILD_ID
                                   // Docker login needs https appended
           ECR = "https://" + params.ECRURL
           docker.withRegistry( ECR, 'ecr:ap-south-1:AWSCred' ) {
@@ -96,14 +96,14 @@ pipeline {
     agent { label 'demo' }
 	steps {
            echo "Scanning Image for Vulnerabilities"
-           sh "trivy image --scanners vuln --offline-scan  ${params.APPREPO}:fb${env.BUILD_ID} > trivyresults.txt"
+           sh "trivy image --scanners vuln --offline-scan  ${params.APPREPO}:int${env.BUILD_ID} > trivyresults.txt"
 
            echo "Analyze Dockerfile for best practices ..."
            sh "docker run --rm -i hadolint/hadolint < Dockerfile | tee -a dockerlinter.log"
 	}
 	post {
           always {
-	    sh "docker rmi ${params.APPREPO}:fb${env.BUILD_ID}"
+	    sh "docker rmi ${params.APPREPO}:int${env.BUILD_ID}"
 	   }
         }
    }
@@ -112,19 +112,19 @@ pipeline {
     {
        agent { label 'kind' }
        steps {
-           git branch: 'newfeature', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/buildpipeline/backend/springboot.git'
+           git branch: 'integration', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/buildpipeline/backend/springboot.git'
       
            echo "Preparing KIND cluster ..."
            sh "kind create cluster --name wezvatechdemo --config=kind.yml"
-           sh "kubectl create namespace wezvatechfb"
+           sh "kubectl create namespace wezvatechint"
           withAWS(credentials:'AWSCred') {
-	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(aws ecr get-login-password)  --namespace=wezvatechfb"
+	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(aws ecr get-login-password)  --namespace=wezvatechint"
 	        }
  
 
            echo "Deploying New Build ..."
            dir("./deployments") {
-                 sh "sed -i 's/image:.[0-9][0-9].*/image: ${params.ECRURL}\\/${params.APPREPO}:fb${env.BUILD_ID}/g' deploybackend.yml"
+                 sh "sed -i 's/image:.[0-9][0-9].*/image: ${params.ECRURL}\\/${params.APPREPO}:int${env.BUILD_ID}/g' deploybackend.yml"
                  sh "kubectl apply -f ."
            }
        }
@@ -134,7 +134,7 @@ pipeline {
     {
        agent { label 'kind' }
        steps {
-              sh "kubectl wait --for=condition=ready pod/`kubectl get pods -n wezvatechfb |grep wezva |awk '{print \$1}'| tail -1` -n wezvatechfb  --timeout=300s"
+              sh "kubectl wait --for=condition=ready pod/`kubectl get pods -n wezvatechint |grep wezva |awk '{print \$1}'| tail -1` -n wezvatechint  --timeout=300s"
               sh  "echo Springboot deployed successfully ..."
 
               echo "Deleting test cluster ..."
@@ -147,9 +147,9 @@ pipeline {
      when {  expression { return params.deploybuild } }
     steps {
 	   script {
-	     TAG = '\\/' + params.APPREPO + ":fb" + env.BUILD_ID
+	     TAG = '\\/' + params.APPREPO + ":int" + env.BUILD_ID
 	     ECR = params.ECRURL
-		  build job: 'Deployment_Pipeline', parameters: [string(name: 'ECRURL', value: ECRURL), string(name: 'IMAGE', value: TAG), password(name: 'PASSWD', value: params.PASSWD), string(name: 'branch', value: 'functional')]
+		  build job: 'Deployment_Pipeline', parameters: [string(name: 'ECRURL', value: ECRURL), string(name: 'IMAGE', value: TAG), password(name: 'PASSWD', value: params.PASSWD), string(name: 'branch', value: 'integration')]
        }
     }
   }
