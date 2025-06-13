@@ -72,26 +72,6 @@ pipeline {
      }
    }
 
-    stage('Store Artifacts')
-    {
-       agent { label 'demo' }
-       steps {
-        script {
-       /* Define the Artifactory Server details */
-            def server = Artifactory.server 'wezvatechjfrog'
-            def uploadSpec = """{
-                "files": [{
-                "pattern": "target/backend_fb${BUILD_ID}.jar",
-                "target": "wezvatech_backend"
-                }]
-            }"""
-
-            /* Upload the war to Artifactory repo */
-            server.upload(uploadSpec)
-        }
-       }
-    }
-
   stage('Build Image')
   {
     agent { label 'demo' }
