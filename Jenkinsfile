@@ -14,7 +14,7 @@ pipeline {
     {
       agent { label 'demo' }
       steps {
-        git branch: 'newfeature', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/buildpipeline/backend/springboot.git'
+        git branch: 'newfeature', credentialsId: 'GitlabCred', url: 'https://gitlab.com/wezvaprojects/ninjas/jobready1.0/build/backend/springboot.git'
       }
      } 
 
