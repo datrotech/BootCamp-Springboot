@@ -118,7 +118,7 @@ pipeline {
            sh "kind create cluster --name wezvatechdemo --config=kind.yml"
            sh "kubectl create namespace wezvatechint"
           withAWS(credentials:'AWSCred') {
-	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(aws ecr get-login-password)  --namespace=wezvatechint"
+	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(/opt/awscli-venv/bin/aws ecr get-login-password --region ap-south-1)  --namespace=wezvatechint"
 	        }
  
 
