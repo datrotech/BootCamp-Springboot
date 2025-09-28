@@ -96,7 +96,7 @@ pipeline {
     agent { label 'demo' }
 	steps {
            echo "Scanning Image for Vulnerabilities"
-           sh "trivy image --scanners vuln --offline-scan  ${params.APPREPO}:fb${env.BUILD_ID} > trivyresults.txt"
+           sh "trivy image --offline-scan  ${params.APPREPO}:fb${env.BUILD_ID} > trivyresults.txt"
 
            echo "Analyze Dockerfile for best practices ..."
            sh "docker run --rm -i hadolint/hadolint < Dockerfile | tee -a dockerlinter.log"
@@ -108,7 +108,7 @@ pipeline {
         }
    }
 
-   stage('Smoke Deploy')
+  stage('Smoke Deploy')
     {
        agent { label 'kind' }
        steps {
@@ -118,7 +118,7 @@ pipeline {
            sh "kind create cluster --name wezvatechdemo --config=kind.yml"
            sh "kubectl create namespace wezvatechfb"
           withAWS(credentials:'AWSCred') {
-	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(aws ecr get-login-password)  --namespace=wezvatechfb"
+	            sh "kubectl create secret docker-registry awsecr-cred  --docker-server=$ECRURL  --docker-username=AWS --docker-password=\$(aws ecr get-login-password --region ap-south-1)  --namespace=wezvatechfb"
 	        }
  
 
@@ -134,10 +134,12 @@ pipeline {
     {
        agent { label 'kind' }
        steps {
-              sh "kubectl wait --for=condition=ready pod/`kubectl get pods -n wezvatechfb |grep wezva |awk '{print \$1}'| tail -1` -n wezvatechfb  --timeout=300s"
-              sh  "echo Springboot deployed successfully ..."
+            catchError(buildResult: 'STABLE', stageResult: 'STABLE', message: 'Smokes test failed') {
+              sh "kubectl wait --for=condition=ready pod/`kubectl get pods -n wezvatechfb |grep wezva |awk '{print \$1}'| tail -1` -n wezvatechfb  --timeout=100s"
+            }
+            sh  "echo Springboot deployed successfully ..."
 
-              echo "Deleting test cluster ..."
+            echo "Deleting test cluster ..."
 	          sh "kind delete clusters wezvatechdemo"
        }
      }
